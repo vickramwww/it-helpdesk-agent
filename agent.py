@@ -27,7 +27,7 @@ from tools import TOOL_DEFINITIONS, execute_tool
 
 # Update to match your Bedrock deployment.
 # Cross-region inference profile format: us.anthropic.<model>-v<n>:<n>
-BEDROCK_MODEL = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+BEDROCK_MODEL = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
 AWS_REGION = "us-east-1"
 
 MAX_TOOL_ROUNDS = 5  # architecture.md §2.3 — hard cap, after which → triage-review

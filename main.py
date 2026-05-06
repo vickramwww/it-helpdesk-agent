@@ -152,7 +152,7 @@ def main() -> None:
     # ── Phase 1: triage every ticket, enqueue by classified priority ─────────
     print("\n[Phase 1] Triaging and enqueuing by priority...")
     print(f"  {'Ticket':<12}  {'Classified priority'}")
-    print(f"  {'─' * 12}  {'─' * 20}")
+    print(f"  {'-' * 12}  {'-' * 20}")
     for ticket in TEST_TICKETS:
         try:
             result = agent.triage(ticket)

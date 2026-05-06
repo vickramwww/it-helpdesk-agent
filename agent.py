@@ -322,13 +322,19 @@ class TriageAgent:
         Process one inbound ticket end-to-end.
 
         Ticket fields:
-          text          (str)  — ticket body, required
+          text          (str)  — ticket body; OR use subject + body (eval.py format)
           ticket_id     (str)  — assigned if not provided
           customer_id   (str)  — optional
           order_id      (str)  — optional hint; agent still decides when to call order_lookup
           channel       (str)  — email | chat | web_form | servicenow | batch
           flags         (list) — pre-populated flags (e.g. from upstream systems)
         """
+        # Normalise eval.py ticket format (subject + body) to the text field
+        if "text" not in ticket and ("subject" in ticket or "body" in ticket):
+            subject = ticket.get("subject", "")
+            body = ticket.get("body", "")
+            ticket = {**ticket, "text": f"{subject}\n{body}".strip()}
+
         ticket_id = ticket.get("ticket_id") or f"TKT-{uuid.uuid4().hex[:6].upper()}"
         start_ms = int(time.monotonic() * 1000)
 
@@ -539,3 +545,35 @@ class TriageAgent:
             "tool_calls": tools_called,
             "latency_ms": latency,
         }
+
+
+# ---------------------------------------------------------------------------
+# Module-level triage function — eval.py calls agent.triage(ticket)
+# ---------------------------------------------------------------------------
+
+_agent: "TriageAgent | None" = None
+
+
+def triage(ticket: dict) -> dict:
+    """
+    Module-level entry point used by eval.py.
+    Returns {"decision": flat_decision_dict, "tool_calls": list_of_tool_names}.
+    """
+    global _agent
+    if _agent is None:
+        _agent = TriageAgent()
+    audit = _agent.triage(ticket)
+    c = audit.get("classification", {})
+    d = audit.get("decision", {})
+    decision = {
+        "category": c.get("category"),
+        "priority": c.get("priority"),
+        "confidence": c.get("confidence"),
+        "action": d.get("action"),
+        "auto_action": d.get("auto_action"),
+        "route_to": d.get("route_to"),
+        "reasoning": audit.get("reasoning"),
+        "guardrail_triggered": d.get("guardrail_triggered", ""),
+    }
+    tool_names = [t["tool"] for t in audit.get("tool_calls", [])]
+    return {"decision": decision, "tool_calls": tool_names}

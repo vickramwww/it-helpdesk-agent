@@ -418,3 +418,43 @@ def execute_tool(name: str, inputs: dict) -> str:
         result = {"error": f"Unknown tool: {name}"}
 
     return json.dumps(result, default=str)
+
+
+# ---------------------------------------------------------------------------
+# Priority ticket queue — sorts P1 → P2 → P3 → P4, FIFO within each tier
+# ---------------------------------------------------------------------------
+
+PRIORITY_ORDER: dict[str, int] = {"P1": 0, "P2": 1, "P3": 2, "P4": 3}
+
+
+class PriorityTicketQueue:
+    """
+    In-memory priority queue for triage results.
+
+    Tickets are bucketed by priority tier (P1–P4). `dequeue` always
+    returns from the highest-priority non-empty bucket; within a tier
+    tickets are served first-in-first-out (arrival order).
+    """
+
+    def __init__(self) -> None:
+        self._buckets: dict[str, list[dict]] = {"P1": [], "P2": [], "P3": [], "P4": []}
+
+    def enqueue(self, ticket_id: str, priority: str, result: dict) -> None:
+        tier = priority if priority in self._buckets else "P4"
+        self._buckets[tier].append({"ticket_id": ticket_id, "priority": tier, "result": result})
+
+    def dequeue(self) -> dict | None:
+        """Return and remove the next highest-priority item, or None if empty."""
+        for tier in sorted(self._buckets, key=lambda p: PRIORITY_ORDER[p]):
+            if self._buckets[tier]:
+                return self._buckets[tier].pop(0)
+        return None
+
+    def peek_sizes(self) -> dict[str, int]:
+        return {p: len(items) for p, items in self._buckets.items()}
+
+    def is_empty(self) -> bool:
+        return not any(self._buckets.values())
+
+    def total(self) -> int:
+        return sum(len(items) for items in self._buckets.values())
